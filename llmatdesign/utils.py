@@ -2,7 +2,7 @@ import re
 import io
 import sys
 import traceback
-
+import json
 def extract_answers(text, markers):
     answers = []
     for i, marker in enumerate(markers):
@@ -109,9 +109,15 @@ def extract_python_code(text):
     pattern = r'```python\n(.*?)\n```'
     match = re.search(pattern, text, re.DOTALL)
     if match:
-        return match.group(1)
-    else:
+        return match.group(1).strip()  # Extract the code block
+
+    # Fallback: Check if the text looks like a dictionary
+    text = text.strip()
+    try:
+        json.loads(text.replace("'", '"'))  # Convert single quotes to double quotes for JSON
         return text
+    except json.JSONDecodeError:
+        return ""  # Return an empty string if it's not valid
     
 def add_solution_func_definition(text):
     solution_func = '''

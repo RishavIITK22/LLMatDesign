@@ -97,12 +97,13 @@ def get_action(llm, prompt):
     count = 0
     while True:
         llm_response = llm.ask(prompt)
+        print(f"Attempt {count + 1}: LLM Response:\n{llm_response}")  # Debugging log
         code = extract_python_code(llm_response)
         code = code.strip()
 
         if code.startswith("{") and code.endswith("}"):
             return code
-        
+
         count += 1
         if count > 5:
             raise ValueError("Failed to get the action code string.")

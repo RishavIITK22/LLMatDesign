@@ -7,7 +7,7 @@ from time import time
 
 from pathlib import Path
 from mp_api.client import MPRester
-
+import torch
 import ase
 import ase.io
 from ase import Atoms
@@ -29,35 +29,37 @@ class Agent:
         bandgap_config_path=None,
         formation_energy_config_path=None,
         mp_api_key=None,
+        device="cpu",
     ):
         self.llm = llm
         self.save_path = Path("./outputs/") if save_path is None else Path(save_path)
         self.forcefield_config_path = forcefield_config_path
         self.bandgap_config_path = bandgap_config_path
         self.formation_energy_config_path = formation_energy_config_path
-
+        self.device = device  # New device parameter
+        if self.device not in ["cpu", "cuda"] or (self.device == "cuda" and not torch.cuda.is_available()):
+            raise ValueError(f"Invalid or unavailable device: {self.device}")
         self.is_success = False
         self.mp_api_key = os.environ.get("MP_API_KEY") if mp_api_key is None else mp_api_key
 
-        # set up the force field calculator
+        # Initialize calculators with the specified device
         if self.forcefield_config_path is not None:
-            self.calculator = MDLCalculator(self.forcefield_config_path)
+            self.calculator = MDLCalculator(self.forcefield_config_path, device=self.device)
             self.structure_optimizer = StructureOptimizer(self.calculator)
         else:
             self.calculator = None
             self.structure_optimizer = None
         
-        # set up the band gap calculator
         if self.bandgap_config_path is not None:
-            self.bandgap_calculator = MDLCalculator(self.bandgap_config_path)
+            self.bandgap_calculator = MDLCalculator(self.bandgap_config_path, device=self.device)
         else:
             self.bandgap_calculator = None
 
-        # set up the formation energy calculator
         if self.formation_energy_config_path is not None:
-            self.formation_energy_calculator = MDLCalculator(self.formation_energy_config_path)
+            self.formation_energy_calculator = MDLCalculator(self.formation_energy_config_path, device=self.device)
         else:
             self.formation_energy_calculator = None
+
     
     # report
     def report(self):
@@ -129,7 +131,7 @@ class Agent:
         except:
             raise ValueError("Calculator not set up")
         
-        device = 'cuda:0'
+        #device = 'cpu'
         initial_atoms = [atoms]
         optimized_atoms = []
 
@@ -153,10 +155,10 @@ class Agent:
             print(f"Optimized {len(initial_atoms)} structures in {toc - tic:.2f} s")
         
         if calculation_type == "formation_energy" and self.formation_energy_calculator is not None:
-            val = self.formation_energy_calculator.direct_calculate(optimized_atoms[0])
+            val = self.formation_energy_calculator.direct_calculate(optimized_atoms[0].to(self.device))
             return optimized_atoms[0], val
         elif calculation_type == "band_gap" and self.bandgap_calculator is not None:
-            val = self.bandgap_calculator.direct_calculate(optimized_atoms[0])
+            val = self.bandgap_calculator.direct_calculate(optimized_atoms[0].to(self.device))
             return optimized_atoms[0], val
         else:
             raise NotImplementedError

@@ -70,7 +70,7 @@ class StructureOptimizer:
     
 if __name__ == '__main__':
     
-    device = 'cuda:0'
+    device = 'cpu'
     
     # config for calculator
     calculator_config = './configs/optimize/torchmdnet.yml'
