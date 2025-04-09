@@ -15,7 +15,9 @@ model:
   pool: "global_add_pool"
   pool_order: "early"
   aggr: "add"
-  dropout_rate: 0.0
+  mc_dropout: True
+  num_mc_samples: 20
+  dropout_rate: 0.3
   # Compute edge indices on the fly in the model forward
   otf_edge_index: True
   # Compute edge attributes on the fly in the model forward

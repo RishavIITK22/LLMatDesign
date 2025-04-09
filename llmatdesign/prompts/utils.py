@@ -66,7 +66,7 @@ def format_historyless_prompt(
 
     return prompt
 
-def get_reflection_prompt(
+def get_reflection_prompt_A(
     previous_chemical_formula, 
     current_chemical_formula, 
     modification, 
@@ -93,6 +93,30 @@ def get_reflection_prompt(
 
     return base
 
+def get_reflection_prompt_B(
+    previous_chemical_formula, 
+    current_chemical_formula, 
+    modification, 
+    target_value, 
+    previous_value, 
+    current_value):
+    base = ( 
+        f"After completing the following modification on the material "
+        f"{previous_chemical_formula}, we obtained {current_chemical_formula} "
+        f"the band gap value changed from {previous_value:.2f} eV to "
+        f"{current_value:.2f} eV. It should be noted that the modification resulted in a material which does not exist on Materials Project Database, and so possibly in real world.Please carefully recommend further modifications and please write a post-action reflection on "
+        f"the modification in a short sentence on how successful the modification "
+        f"was in achieving the target band gap value of {target_value} eV and why so:\n"
+        f"<modification>"
+    )
+    base = base.replace("<previous_chemical_formula>", previous_chemical_formula)
+    base = base.replace("<current_chemical_formula>", current_chemical_formula)
+    base = base.replace("<previous_value>", str(previous_value))
+    base = base.replace("<current_value>", str(current_value))
+    base = base.replace("<target_value>", str(target_value))
+    base = base.replace("<modification>", str(modification))
+
+    return base
 def get_action(llm, prompt):
     count = 0
     while True:

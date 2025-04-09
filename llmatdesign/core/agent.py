@@ -37,7 +37,7 @@ class Agent:
         self.formation_energy_config_path = formation_energy_config_path
 
         self.is_success = False
-        self.mp_api_key = os.environ.get("MP_API_KEY") if mp_api_key is None else mp_api_key
+        self.mp_api_key = os.environ.get("HykOG4IhaN8Xi2kH3dq0lr42nLpcMBZE") if mp_api_key is None else mp_api_key
 
         # set up the force field calculator
         if self.forcefield_config_path is not None:
@@ -108,7 +108,9 @@ class Agent:
             # return ase.Atoms object if the target property is "structure"
             if target_property == "structure":
                 pmg_structure = docs[0].structure
+                #print(pmg_structure) #DEBUGGING STATEMENT
                 ase_atoms = AseAtomsAdaptor.get_atoms(pmg_structure, msonable=False)
+                #print(ase_atoms)
                 return [True, ase_atoms]
             return [True, getattr(docs[0], target_property)]
         else:
@@ -119,7 +121,9 @@ class Agent:
             # return ase.Atoms object if the target property is "structure"
             if target_property == "structure":
                 pmg_structure = docs[idx].structure
+                #print(pmg_structure) #DEBUGGING STATEMENT
                 ase_atoms = AseAtomsAdaptor.get_atoms(pmg_structure, msonable=False)
+                #print(ase_atoms)
                 return [True, ase_atoms]
             return [True, getattr(docs[idx], target_property)]
 
@@ -129,7 +133,7 @@ class Agent:
         except:
             raise ValueError("Calculator not set up")
         
-        device = 'cuda:0'
+        device = 'cpu'
         initial_atoms = [atoms]
         optimized_atoms = []
 
@@ -148,23 +152,39 @@ class Agent:
 
                 times.append(time_per_step)
                 optimized_atoms.append(optimized)
-
+        
             toc = time()
             print(f"Optimized {len(initial_atoms)} structures in {toc - tic:.2f} s")
-        
-        if calculation_type == "formation_energy" and self.formation_energy_calculator is not None:
-            val = self.formation_energy_calculator.direct_calculate(optimized_atoms[0])
-            return optimized_atoms[0], val
-        elif calculation_type == "band_gap" and self.bandgap_calculator is not None:
-            val = self.bandgap_calculator.direct_calculate(optimized_atoms[0])
-            return optimized_atoms[0], val
+        real_structure= False
+        uncertainty=0.0
+        optimized_structure= optimized_atoms[0]
+        new_chemical_formula = optimized_structure.get_chemical_formula()
+        _, structure_from_mp = self.query_materials_project(new_chemical_formula, 'structure')
+        if structure_from_mp is not None:
+            real_structure=True
+            _, band_gap = self.query_materials_project(structure_from_mp.get_chemical_formula(), 'band_gap')
+            print("MP-API CALL SUCCESSFUL")
+            band_gap_uncertainty=0.0
+            return optimized_structure, band_gap, band_gap_uncertainty, real_structure
         else:
-            raise NotImplementedError
+            
+
+                print("OPENING A ROAD TO NEW DISCOVERY :)........")
+                if calculation_type == "formation_energy" and self.formation_energy_calculator is not None:
+                    #v= self.formation_energy_calculator.calculate(optimized_atoms[0])
+                    val, val_uncertainty =self.formation_energy_calculator.direct_calculate_energy(optimized_atoms[0])
+                    return optimized_atoms[0], val, val_uncertainty, real_structure
+                elif calculation_type == "band_gap" and self.bandgap_calculator is not None:
+                    #v= self.bandgap_calculator.calculate(optimized_atoms[0])
+                    val, val_uncertainty = self.bandgap_calculator.direct_calculate_band_gap(optimized_atoms[0])
+                    return optimized_atoms[0], val, val_uncertainty, real_structure
+                else:
+                    raise NotImplementedError
     
     def is_within_threshold(self, calculated_value, target_value, threshold=10):
         return abs(calculated_value - target_value) / abs(target_value) * 100 <= threshold
 
-    def perform_modification(self, structure, modification, calculation_type="formation_energy"):
+    def perform_modification(self, structure, modification, calculation_type):
         if isinstance(modification, str):
             from ast import literal_eval
             modification, reason = literal_eval(modification)
@@ -228,6 +248,13 @@ class Agent:
 
         else:
             raise ValueError(f"Invalid modification type: {modification_type}")
+        # uncertainty=0.0
+        # new_chemical_formula = new_structure.get_chemical_formula()
+        # _, structure_from_mp = self.query_materials_project(new_chemical_formula, 'structure')
+        # if structure_from_mp is not None:
+        #   _, band_gap = self.query_materials_project(structure_from_mp.get_chemical_formula(), 'band_gap')
+        #   uncertainty=0.0
+        # else:
 
         return self.optimize_and_calculate(new_structure, calculation_type=calculation_type)
 
